@@ -1,0 +1,36 @@
+{% extends "dashboard_base.html" %}
+{% set active = 'students' %}
+{% block title %}Promote {{ student.name }}{% endblock %}
+{% block page_title %}Promote Student{% endblock %}
+
+{% block content %}
+<div class="panel" style="max-width: 520px;">
+  <h2>{{ student.name }} &mdash; currently Class {{ student.class_name }}, Section {{ student.section }}</h2>
+  <p style="color: var(--slate); font-size: 0.9rem;">
+    Promoting will add a new fee charge for the target class (tuition, dress, books, misc &mdash;
+    no admission fee is charged again).
+  </p>
+  <form method="POST" action="{{ url_for('promote_student', student_id=student.id) }}">
+    <div class="field-row">
+      <div class="field">
+        <label for="class_name">New Class</label>
+        <select id="class_name" name="class_name" required>
+          {% for c in classes %}
+          <option value="{{ c }}" {% if c == student.class_name %}selected{% endif %}>{{ 'KG' if c == 'KG' else 'Class ' + c }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="section">New Section</label>
+        <select id="section" name="section" required>
+          {% for s in sections %}
+          <option value="{{ s }}" {% if s == student.section %}selected{% endif %}>Section {{ s }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Confirm Promotion</button>
+    <a href="{{ url_for('student_ledger', student_id=student.id) }}" class="btn btn-outline">Cancel</a>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,82 @@
+{% extends "dashboard_base.html" %}
+{% set active = 'add_student' %}
+{% block title %}Add Student{% endblock %}
+{% block page_title %}Add New Student{% endblock %}
+
+{% block content %}
+<div class="panel" style="max-width: 720px;">
+  <h2>Student Details</h2>
+  <form method="POST" action="{{ url_for('add_student') }}" id="add-student-form">
+    <div class="field-row">
+      <div class="field">
+        <label for="name">Full Name</label>
+        <input type="text" id="name" name="name" required>
+      </div>
+      <div class="field">
+        <label for="gender">Gender</label>
+        <select id="gender" name="gender">
+          <option value="Male">Male</option>
+          <option value="Female">Female</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="dob">Date of Birth</label>
+        <input type="date" id="dob" name="dob">
+      </div>
+      <div class="field">
+        <label for="admission_date_display">Admission Date</label>
+        <input type="text" id="admission_date_display" value="Today" disabled>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="class_name">Class</label>
+        <select id="class_name" name="class_name" required>
+          <option value="">Select class</option>
+          {% for c in classes %}
+          <option value="{{ c }}">{{ 'KG' if c == 'KG' else 'Class ' + c }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="section">Section</label>
+        <select id="section" name="section" required>
+          <option value="">Select section</option>
+          {% for s in sections %}
+          <option value="{{ s }}">Section {{ s }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div id="fee-preview" class="fee-preview" style="display:none;"></div>
+
+    <div class="field-row" style="margin-top: 18px;">
+      <div class="field">
+        <label for="guardian_name">Guardian / Parent Name</label>
+        <input type="text" id="guardian_name" name="guardian_name">
+      </div>
+      <div class="field">
+        <label for="contact_number">Contact Number</label>
+        <input type="text" id="contact_number" name="contact_number">
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="address">Address</label>
+      <textarea id="address" name="address" rows="2"></textarea>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Admit Student</button>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/add_student.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="hero">
+  <div class="container">
+    <div class="hero-eyebrow">KG &mdash; Class IX &middot; Est. in the valley</div>
+    <h1>{{ config.SCHOOL_TAGLINE }}</h1>
+    <p class="lead">
+      A family-run school built on small class sizes, close attention to every
+      child, and a community that knows each student by name.
+    </p>
+    <div class="hero-actions">
+      <a href="#about" class="btn btn-primary">Learn more</a>
+      <a href="{{ url_for('login') }}" class="btn btn-outline on-dark">Staff Login</a>
+    </div>
+  </div>
+  <!-- Signature element: a valley ridge line, tying the visual identity to the school's name -->
+  <svg class="ridge" viewBox="0 0 1200 90" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M0,90 L0,55 L120,30 L230,60 L340,15 L460,50 L600,10 L740,48 L860,25 L980,58 L1100,20 L1200,45 L1200,90 Z"
+          fill="#FBF8F2"></path>
+  </svg>
+</section>
+
+<section class="stats-strip">
+  <div class="container">
+    <div class="stats-grid">
+      <div class="stat"><div class="num">280+</div><div class="label">Students</div></div>
+      <div class="stat"><div class="num">10</div><div class="label">Grades, KG&ndash;9</div></div>
+      <div class="stat"><div class="num">5</div><div class="label">Sections per grade</div></div>
+      <div class="stat"><div class="num">2</div><div class="label">Founding families</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="about">
+  <div class="container">
+    <div class="section-heading">
+      <div class="eyebrow">Why families choose us</div>
+      <h2>Every child, known well</h2>
+    </div>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="icon">A</div>
+        <h3>Small sections</h3>
+        <p>Each grade is split into focused sections so teachers can give every student real attention.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">B</div>
+        <h3>Transparent fees</h3>
+        <p>A clear fee structure for every class, with receipts and running balances for every family.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">C</div>
+        <h3>Rooted in community</h3>
+        <p>Run by two founding families who've watched the school grow year after year, together.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="testimonial-strip section">
+  <div class="container">
+    <div class="section-heading">
+      <div class="eyebrow">From our parents</div>
+      <h2>What families are saying</h2>
+    </div>
+    <div class="testimonial-scroll">
+      <div class="testimonial-card">
+        <p class="quote">Our daughter has grown so much in confidence since joining. The teachers genuinely know her.</p>
+        <div class="who">Parent, Class 4</div>
+      </div>
+      <div class="testimonial-card">
+        <p class="quote">Fee payments and admissions have always been simple and clearly explained.</p>
+        <div class="who">Parent, KG</div>
+      </div>
+      <div class="testimonial-card">
+        <p class="quote">A school that feels like an extended family, not just an institution.</p>
+        <div class="who">Parent, Class 8</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="cta-band">
+  <div class="container">
+    <h2>Have a question about admissions?</h2>
+    <p style="color: var(--forest-tint); margin-bottom: 22px;">Visit the school office or reach out &mdash; our team is happy to help.</p>
+    <a href="{{ url_for('login') }}" class="btn btn-primary">Staff Login</a>
+  </div>
+</section>
+
+{% endblock %}

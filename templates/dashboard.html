@@ -1,0 +1,62 @@
+{% extends "dashboard_base.html" %}
+{% set active = 'dashboard' %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="card-grid">
+  <div class="stat-card">
+    <div class="label">Active Students</div>
+    <div class="value">{{ total_students }}</div>
+  </div>
+  <div class="stat-card warn">
+    <div class="label">Total Fees Pending</div>
+    <div class="value">&#8377;{{ "{:,.0f}".format(total_pending) }}</div>
+  </div>
+  <div class="stat-card ok">
+    <div class="label">Total Collected</div>
+    <div class="value">&#8377;{{ "{:,.0f}".format(total_collected) }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Classes Active</div>
+    <div class="value">{{ class_counts|length }}</div>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Students per Class</h2>
+  {% if class_counts %}
+    <table class="data-table">
+      <thead><tr><th>Class</th><th>Students</th></tr></thead>
+      <tbody>
+        {% for class_name, count in class_counts.items() %}
+        <tr><td>{{ class_name }}</td><td>{{ count }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="empty-state"><h3>No students yet</h3><p>Add your first student to see class-wise numbers here.</p></div>
+  {% endif %}
+</div>
+
+<div class="panel">
+  <h2>Recent Deposits</h2>
+  {% if recent_payments %}
+    <table class="data-table">
+      <thead><tr><th>Date</th><th>Student</th><th>Mode</th><th>Amount</th></tr></thead>
+      <tbody>
+        {% for t in recent_payments %}
+        <tr>
+          <td>{{ t.date.strftime('%d %b %Y') }}</td>
+          <td><a href="{{ url_for('student_ledger', student_id=t.student_id) }}">{{ t.student.name }}</a></td>
+          <td>{{ t.mode }}</td>
+          <td class="num-cell">&#8377;{{ "{:,.0f}".format(t.amount) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="empty-state"><h3>No deposits recorded yet</h3><p>Deposits will show up here as they're recorded on student ledgers.</p></div>
+  {% endif %}
+</div>
+{% endblock %}
