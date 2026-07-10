@@ -56,6 +56,10 @@ class Student(db.Model):
         "Transaction", backref="student", lazy="dynamic",
         cascade="all, delete-orphan", order_by="Transaction.date, Transaction.id"
     )
+    notes = db.relationship(
+        "StudentNote", backref="student", lazy="dynamic",
+        cascade="all, delete-orphan", order_by="StudentNote.created_at.desc()"
+    )
 
     @property
     def balance(self):
@@ -76,6 +80,24 @@ class Student(db.Model):
             "admission_date": self.admission_date.isoformat() if self.admission_date else None,
             "balance": self.balance,
             "is_active": self.is_active,
+        }
+
+
+class StudentNote(db.Model):
+    """A general remark about a student — e.g. 'requested fee extension',
+    not tied to any specific deposit. Shown on the students list and ledger."""
+    __tablename__ = "student_notes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey("students.id"), nullable=False)
+    note = db.Column(db.String(500), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "note": self.note,
+            "created_at": self.created_at.strftime("%d %b %Y") if self.created_at else None,
         }
 
 

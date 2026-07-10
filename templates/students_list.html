@@ -44,21 +44,57 @@
         <th>Guardian</th>
         <th>Contact</th>
         <th class="num-cell">Balance Due</th>
-        <th></th>
+        <th>Actions</th>
       </tr>
     </thead>
     <tbody>
       {% for s in students %}
-      <tr>
+      {% set latest_note = s.notes.first() %}
+      <tr data-student-id="{{ s.id }}">
         <td>{{ s.admission_number }}</td>
-        <td>{{ s.name }}</td>
+        <td>
+          {{ s.name }}
+          <div class="row-remark" {% if not latest_note %}style="display:none;"{% endif %}>
+            {{ latest_note.note if latest_note else '' }}
+          </div>
+        </td>
         <td>{{ s.class_name }} - {{ s.section }}</td>
         <td>{{ s.guardian_name or '—' }}</td>
         <td>{{ s.contact_number or '—' }}</td>
-        <td class="num-cell {{ 'due' if s.balance > 0 else 'clear' }}">
+        <td class="num-cell balance-cell {{ 'due' if s.balance > 0 else 'clear' }}">
           &#8377;{{ "{:,.0f}".format(s.balance) }}
         </td>
-        <td><a href="{{ url_for('student_ledger', student_id=s.id) }}" class="btn btn-outline btn-sm">Open Ledger</a></td>
+        <td class="row-actions">
+          <button type="button" class="btn btn-outline btn-sm toggle-collect">Collect Fee</button>
+          <button type="button" class="btn btn-outline btn-sm toggle-remark">Remark</button>
+          <a href="{{ url_for('student_ledger', student_id=s.id) }}" class="btn btn-outline btn-sm">Ledger</a>
+        </td>
+      </tr>
+      <tr class="inline-panel-row collect-panel" style="display:none;">
+        <td colspan="7">
+          <form class="inline-collect-form">
+            <span class="inline-panel-label">Collect fee &mdash;</span>
+            <input type="number" name="amount" placeholder="Amount" step="0.01" min="1" required>
+            <select name="mode">
+              <option value="Cash">Cash</option>
+              <option value="Online">Online / UPI</option>
+              <option value="Cheque">Cheque</option>
+            </select>
+            <input type="text" name="remarks" placeholder="Remark for this deposit (optional)">
+            <button type="submit" class="btn btn-primary btn-sm">Save Deposit</button>
+            <span class="inline-panel-status"></span>
+          </form>
+        </td>
+      </tr>
+      <tr class="inline-panel-row remark-panel" style="display:none;">
+        <td colspan="7">
+          <form class="inline-remark-form">
+            <span class="inline-panel-label">Add remark &mdash;</span>
+            <input type="text" name="note" placeholder="e.g. Requested extension until next month" style="width: 320px;" required>
+            <button type="submit" class="btn btn-primary btn-sm">Save Remark</button>
+            <span class="inline-panel-status"></span>
+          </form>
+        </td>
       </tr>
       {% endfor %}
     </tbody>

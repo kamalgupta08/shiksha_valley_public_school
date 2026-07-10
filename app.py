@@ -1,6 +1,7 @@
 import csv
 import io
-from datetime import date, datetime
+from datetime import date, datetime, timezone
+from zoneinfo import ZoneInfo
 
 from flask import (
     Flask, render_template, request, redirect, url_for,
@@ -9,7 +10,7 @@ from flask import (
 
 from config import Config
 from extensions import db
-from models import FeeStructure, Student, Transaction
+from models import FeeStructure, Student, Transaction, StudentNote
 from utils import login_required, generate_admission_number
 
 
@@ -23,7 +24,22 @@ def create_app():
         _seed_fee_structure_if_empty()
 
     register_routes(app)
+    _register_template_filters(app)
     return app
+
+
+def _register_template_filters(app):
+    @app.template_filter("ist")
+    def ist_filter(dt):
+        """Renders a stored UTC timestamp as 'DD Mon YYYY, HH:MM AM/PM' in India time,
+        so the ledger shows when a deposit actually happened, regardless of where the
+        server itself is hosted."""
+        if dt is None:
+            return "—"
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        local_dt = dt.astimezone(ZoneInfo("Asia/Kolkata"))
+        return local_dt.strftime("%d %b %Y, %I:%M %p")
 
 
 def _seed_fee_structure_if_empty():
@@ -231,12 +247,16 @@ def register_routes(app):
     @login_required
     def deposit_fee(student_id):
         student = Student.query.get_or_404(student_id)
+        is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
         try:
             amount = float(request.form.get("amount", 0))
         except ValueError:
             amount = 0
 
         if amount <= 0:
+            if is_ajax:
+                return jsonify({"ok": False, "error": "Enter a valid deposit amount."}), 400
             flash("Enter a valid deposit amount.", "danger")
             return redirect(url_for("student_ledger", student_id=student.id))
 
@@ -253,7 +273,38 @@ def register_routes(app):
         )
         db.session.add(txn)
         db.session.commit()
+
+        if is_ajax:
+            return jsonify({
+                "ok": True,
+                "balance": student.balance,
+                "message": f"Deposit of Rs {amount:,.2f} recorded for {student.name}.",
+            })
+
         flash(f"Deposit of Rs {amount:,.2f} recorded for {student.name}.", "success")
+        return redirect(url_for("student_ledger", student_id=student.id))
+
+    @app.route("/students/<int:student_id>/note", methods=["POST"])
+    @login_required
+    def add_student_note(student_id):
+        student = Student.query.get_or_404(student_id)
+        is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        note_text = request.form.get("note", "").strip()
+
+        if not note_text:
+            if is_ajax:
+                return jsonify({"ok": False, "error": "Remark can't be empty."}), 400
+            flash("Remark can't be empty.", "danger")
+            return redirect(url_for("student_ledger", student_id=student.id))
+
+        note = StudentNote(student_id=student.id, note=note_text)
+        db.session.add(note)
+        db.session.commit()
+
+        if is_ajax:
+            return jsonify({"ok": True, "note": note.note, "created_at": note.created_at.strftime("%d %b %Y")})
+
+        flash("Remark added.", "success")
         return redirect(url_for("student_ledger", student_id=student.id))
 
     @app.route("/students/<int:student_id>/promote", methods=["GET", "POST"])

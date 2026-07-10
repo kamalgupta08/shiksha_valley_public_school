@@ -53,13 +53,38 @@
   </form>
 </div>
 
+
+<div class="panel" style="max-width: 480px;">
+  <h2>Remarks</h2>
+  <form method="POST" action="{{ url_for('add_student_note', student_id=student.id) }}" style="margin-bottom: 16px;">
+    <div class="field">
+      <label for="note">Add a remark</label>
+      <input type="text" id="note" name="note" placeholder="e.g. Requested extension until next month" required>
+    </div>
+    <button type="submit" class="btn btn-primary btn-sm">Save Remark</button>
+  </form>
+  {% set notes = student.notes.all() %}
+  {% if notes %}
+    <table class="data-table">
+      <thead><tr><th>Date</th><th>Remark</th></tr></thead>
+      <tbody>
+        {% for n in notes %}
+        <tr><td style="white-space:nowrap;">{{ n.created_at.strftime('%d %b %Y') }}</td><td>{{ n.note }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p style="color: var(--slate); font-size: 0.88rem;">No remarks yet.</p>
+  {% endif %}
+</div>
+
 <div class="panel">
   <h2>Ledger History</h2>
   {% if transactions %}
   <table class="data-table">
     <thead>
       <tr>
-        <th>Date</th>
+        <th>Date &amp; Time</th>
         <th>Type</th>
         <th>Description</th>
         <th>Mode</th>
@@ -70,7 +95,7 @@
     <tbody>
       {% for t in transactions %}
       <tr>
-        <td>{{ t.date.strftime('%d %b %Y') }}</td>
+        <td style="white-space: nowrap;">{{ t.created_at | ist }}</td>
         <td><span class="badge {{ 'badge-charge' if t.txn_type == 'CHARGE' else 'badge-payment' }}">{{ t.txn_type }}</span></td>
         <td>{{ t.category }}{% if t.remarks %} &middot; {{ t.remarks }}{% endif %}</td>
         <td>{{ t.mode or '—' }}</td>
