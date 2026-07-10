@@ -1,4 +1,4 @@
-# Siksha Valley Public School — Website & Fee Management System
+# Shiksha Valley Public School — Website & Fee Management System
 
 A lightweight Flask + jQuery + PostgreSQL app: a public website (home page,
 features, testimonials) plus a password-protected staff area for managing
