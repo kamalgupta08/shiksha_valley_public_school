@@ -12,7 +12,7 @@
         <select id="class_name" name="class_name">
           <option value="">All classes</option>
           {% for c in classes %}
-          <option value="{{ c }}" {% if class_filter == c %}selected{% endif %}>{{ 'KG' if c == 'KG' else 'Class ' + c }}</option>
+          <option value="{{ c }}" {% if class_filter == c %}selected{% endif %}>{{ class_label(c) }}</option>
           {% endfor %}
         </select>
       </div>
@@ -80,6 +80,7 @@
               <option value="Online">Online / UPI</option>
               <option value="Cheque">Cheque</option>
             </select>
+            <input type="date" name="date" value="{{ today }}" max="{{ today }}">
             <input type="text" name="remarks" placeholder="Remark for this deposit (optional)">
             <button type="submit" class="btn btn-primary btn-sm">Save Deposit</button>
             <span class="inline-panel-status"></span>

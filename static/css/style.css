@@ -389,6 +389,7 @@ table.data-table tbody tr:hover { background: var(--forest-tint); }
 }
 .badge-charge { background: #F8E4DE; color: var(--red); }
 .badge-payment { background: #E4F2E9; color: var(--green-ok); }
+.badge-adjustment { background: #FBF0D9; color: #8A6417; }
 
 .toolbar { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; margin-bottom: 18px; }
 .toolbar .field { margin-bottom: 0; min-width: 160px; }
@@ -425,6 +426,7 @@ table.data-table tbody tr:hover { background: var(--forest-tint); }
   font-family: var(--font-body);
 }
 .inline-collect-form input[name="amount"] { width: 110px; }
+.inline-collect-form input[type="date"] { width: 150px; }
 .inline-panel-status { font-size: 0.78rem; font-weight: 600; }
 
 .empty-state { text-align: center; padding: 50px 20px; color: var(--slate); }

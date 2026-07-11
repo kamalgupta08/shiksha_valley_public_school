@@ -15,7 +15,7 @@
     <tbody>
       {% for row in fee_rows %}
       <tr>
-        <td>{{ 'KG' if row.class_name == 'KG' else 'Class ' + row.class_name }}</td>
+        <td>{{ class_label(row.class_name) }}</td>
         <td class="num-cell">&#8377;{{ "{:,.0f}".format(row.admission_fee) }}</td>
         <td class="num-cell">&#8377;{{ "{:,.0f}".format(row.tuition_fee) }}</td>
         <td class="num-cell">&#8377;{{ "{:,.0f}".format(row.dress_fee) }}</td>
@@ -35,7 +35,7 @@
       <label for="class_name">Class</label>
       <select id="class_name" name="class_name" required>
         {% for c in classes %}
-        <option value="{{ c }}">{{ 'KG' if c == 'KG' else 'Class ' + c }}</option>
+        <option value="{{ c }}">{{ class_label(c) }}</option>
         {% endfor %}
       </select>
     </div>

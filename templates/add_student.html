@@ -6,7 +6,7 @@
 {% block content %}
 <div class="panel" style="max-width: 720px;">
   <h2>Student Details</h2>
-  <form method="POST" action="{{ url_for('add_student') }}" id="add-student-form">
+  <form method="POST" action="{{ url_for('add_student') }}" id="add-student-form" data-fee-mode="admission">
     <div class="field-row">
       <div class="field">
         <label for="name">Full Name</label>
@@ -39,7 +39,7 @@
         <select id="class_name" name="class_name" required>
           <option value="">Select class</option>
           {% for c in classes %}
-          <option value="{{ c }}">{{ 'KG' if c == 'KG' else 'Class ' + c }}</option>
+          <option value="{{ c }}">{{ class_label(c) }}</option>
           {% endfor %}
         </select>
       </div>
@@ -55,6 +55,11 @@
     </div>
 
     <div id="fee-preview" class="fee-preview" style="display:none;"></div>
+
+    <div class="field" id="override-field" style="display:none; margin-top: 14px;">
+      <label for="override_amount">Total Fee to Charge (editable — leave as-is unless this student gets a different amount)</label>
+      <input type="number" id="override_amount" name="override_amount" step="0.01" min="0">
+    </div>
 
     <div class="field-row" style="margin-top: 18px;">
       <div class="field">

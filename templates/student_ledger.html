@@ -46,10 +46,38 @@
       </div>
     </div>
     <div class="field">
+      <label for="date">Date Received</label>
+      <input type="date" id="date" name="date" value="{{ today }}" max="{{ today }}">
+    </div>
+    <div class="field">
       <label for="remarks">Remarks (optional)</label>
       <input type="text" id="remarks" name="remarks" placeholder="e.g. Term 2 installment">
     </div>
     <button type="submit" class="btn btn-primary">Record Deposit</button>
+  </form>
+</div>
+
+<div class="panel" style="max-width: 480px;">
+  <h2>Adjust Fee (discount or extra charge)</h2>
+  <p style="color: var(--slate); font-size: 0.85rem; margin-top: -8px;">
+    Use this for a one-off discount or correction for this student &mdash; it's recorded
+    on the ledger and adjusts their balance, without changing the class fee structure.
+  </p>
+  <form method="POST" action="{{ url_for('adjust_fee', student_id=student.id) }}">
+    <div class="field-row">
+      <div class="field">
+        <label for="adjust_amount">Amount (&#8377;)</label>
+        <input type="number" id="adjust_amount" name="amount" step="0.01" required placeholder="e.g. -1500 for a discount">
+      </div>
+      <div class="field">
+        <label for="adjust_reason">Reason</label>
+        <input type="text" id="adjust_reason" name="reason" placeholder="e.g. Sibling discount">
+      </div>
+    </div>
+    <p style="color: var(--slate); font-size: 0.8rem;">
+      Enter a negative number to reduce what's owed (a discount), or a positive number to add a charge.
+    </p>
+    <button type="submit" class="btn btn-outline">Apply Adjustment</button>
   </form>
 </div>
 
@@ -96,10 +124,18 @@
       {% for t in transactions %}
       <tr>
         <td style="white-space: nowrap;">{{ t.created_at | ist }}</td>
-        <td><span class="badge {{ 'badge-charge' if t.txn_type == 'CHARGE' else 'badge-payment' }}">{{ t.txn_type }}</span></td>
+        <td>
+          {% if t.txn_type == 'CHARGE' %}
+            <span class="badge badge-charge">CHARGE</span>
+          {% elif t.txn_type == 'PAYMENT' %}
+            <span class="badge badge-payment">PAYMENT</span>
+          {% else %}
+            <span class="badge badge-adjustment">{{ 'DISCOUNT' if t.amount < 0 else 'ADJUSTMENT' }}</span>
+          {% endif %}
+        </td>
         <td>{{ t.category }}{% if t.remarks %} &middot; {{ t.remarks }}{% endif %}</td>
         <td>{{ t.mode or '—' }}</td>
-        <td class="num-cell">&#8377;{{ "{:,.0f}".format(t.amount) }}</td>
+        <td class="num-cell">{{ '-' if t.amount < 0 else '' }}&#8377;{{ "{:,.0f}".format(t.amount|abs) }}</td>
         <td class="num-cell">&#8377;{{ "{:,.0f}".format(t.balance_after) }}</td>
       </tr>
       {% endfor %}

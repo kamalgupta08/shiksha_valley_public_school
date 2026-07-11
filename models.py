@@ -63,10 +63,13 @@ class Student(db.Model):
 
     @property
     def balance(self):
-        """Positive = amount due. Negative = advance / credit."""
+        """Positive = amount due. Negative = advance / credit.
+        ADJUSTMENT entries let staff apply a discount (negative amount) or an
+        extra charge (positive amount) to an individual student at any time."""
         charges = sum(float(t.amount) for t in self.transactions if t.txn_type == "CHARGE")
         payments = sum(float(t.amount) for t in self.transactions if t.txn_type == "PAYMENT")
-        return round(charges - payments, 2)
+        adjustments = sum(float(t.amount) for t in self.transactions if t.txn_type == "ADJUSTMENT")
+        return round(charges - payments + adjustments, 2)
 
     def to_dict(self):
         return {
@@ -108,7 +111,7 @@ class Transaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey("students.id"), nullable=False)
 
-    txn_type = db.Column(db.String(10), nullable=False)   # 'CHARGE' or 'PAYMENT'
+    txn_type = db.Column(db.String(10), nullable=False)   # 'CHARGE', 'PAYMENT', or 'ADJUSTMENT'
     category = db.Column(db.String(60), nullable=False)   # e.g. 'Admission Fee', 'Deposit'
     amount = db.Column(db.Numeric(10, 2), nullable=False)
     date = db.Column(db.Date, nullable=False, default=date.today)

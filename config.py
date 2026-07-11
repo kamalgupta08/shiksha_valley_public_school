@@ -29,5 +29,5 @@ class Config:
     SCHOOL_TAGLINE = os.environ.get("SCHOOL_TAGLINE", "Nurturing minds from KG to Class IX")
 
     # Classes offered — used to drive dropdowns and fee-structure seeding
-    CLASS_LIST = ["KG", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+    CLASS_LIST = ["Nursery", "KG", "UKG", "1", "2", "3", "4", "5", "6", "7"]
     SECTION_LIST = ["A", "B", "C", "D", "E"]

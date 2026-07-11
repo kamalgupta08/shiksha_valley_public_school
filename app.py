@@ -11,7 +11,7 @@ from flask import (
 from config import Config
 from extensions import db
 from models import FeeStructure, Student, Transaction, StudentNote
-from utils import login_required, generate_admission_number
+from utils import login_required, generate_admission_number, recompute_balances
 
 
 def create_app():
@@ -41,14 +41,23 @@ def _register_template_filters(app):
         local_dt = dt.astimezone(ZoneInfo("Asia/Kolkata"))
         return local_dt.strftime("%d %b %Y, %I:%M %p")
 
+    @app.template_global("class_label")
+    def class_label(class_name):
+        """'Nursery', 'KG', 'UKG' display as-is; numeric classes get a 'Class' prefix."""
+        if class_name and class_name.isdigit():
+            return f"Class {class_name}"
+        return class_name
+
 
 def _seed_fee_structure_if_empty():
-    """Creates a placeholder fee row per class the first time the app runs, so the
-    Fee Structure page always has something to edit instead of starting blank."""
-    if FeeStructure.query.count() > 0:
-        return
+    """Ensures every class in CLASS_LIST has at least a placeholder fee row.
+    Only ADDS rows for classes that don't exist yet — never touches or removes
+    a class you've already customized, so this is safe to run on every
+    deploy/restart, even after you've edited real fee amounts."""
     defaults = {
+        "Nursery": dict(admission_fee=1800, tuition_fee=10000, dress_fee=1200, book_fee=1200, misc_fee=800),
         "KG": dict(admission_fee=2000, tuition_fee=12000, dress_fee=1500, book_fee=1500, misc_fee=1000),
+        "UKG": dict(admission_fee=2200, tuition_fee=13000, dress_fee=1500, book_fee=1700, misc_fee=1000),
         "1": dict(admission_fee=2500, tuition_fee=14000, dress_fee=1500, book_fee=2000, misc_fee=1000),
         "2": dict(admission_fee=2500, tuition_fee=14000, dress_fee=1500, book_fee=2000, misc_fee=1000),
         "3": dict(admission_fee=2500, tuition_fee=15000, dress_fee=1500, book_fee=2200, misc_fee=1200),
@@ -56,12 +65,15 @@ def _seed_fee_structure_if_empty():
         "5": dict(admission_fee=3000, tuition_fee=16000, dress_fee=1500, book_fee=2500, misc_fee=1200),
         "6": dict(admission_fee=3000, tuition_fee=17000, dress_fee=1500, book_fee=2500, misc_fee=1500),
         "7": dict(admission_fee=3000, tuition_fee=17000, dress_fee=1500, book_fee=2800, misc_fee=1500),
-        "8": dict(admission_fee=3500, tuition_fee=18000, dress_fee=1500, book_fee=2800, misc_fee=1500),
-        "9": dict(admission_fee=3500, tuition_fee=19000, dress_fee=1500, book_fee=3000, misc_fee=1800),
     }
+    existing_classes = {row.class_name for row in FeeStructure.query.all()}
+    added = False
     for class_name, fees in defaults.items():
-        db.session.add(FeeStructure(class_name=class_name, **fees))
-    db.session.commit()
+        if class_name not in existing_classes:
+            db.session.add(FeeStructure(class_name=class_name, **fees))
+            added = True
+    if added:
+        db.session.commit()
 
 
 def register_routes(app):
@@ -149,17 +161,31 @@ def register_routes(app):
             db.session.add(student)
             db.session.flush()  # get student.id before commit
 
-            charge_amount = fee_row.total_for_new_admission()
+            computed_total = fee_row.total_for_new_admission()
+            override_str = request.form.get("override_amount", "").strip()
+            is_custom = bool(override_str)
+            try:
+                charge_amount = float(override_str) if is_custom else computed_total
+            except ValueError:
+                charge_amount = computed_total
+                is_custom = False
+
+            remarks = f"Admission to Class {class_name} {student.section}"
+            if is_custom and charge_amount != computed_total:
+                remarks += f" (custom fee — standard is Rs {computed_total:,.0f})"
+
             txn = Transaction(
                 student_id=student.id,
                 txn_type="CHARGE",
                 category="New Admission Fee",
                 amount=charge_amount,
                 date=date.today(),
-                remarks=f"Admission to Class {class_name} {student.section}",
+                remarks=remarks,
                 balance_after=charge_amount,
             )
             db.session.add(txn)
+            db.session.flush()
+            recompute_balances(student)
             db.session.commit()
 
             flash(f"{student.name} admitted successfully. Admission No: {student.admission_number}", "success")
@@ -198,6 +224,7 @@ def register_routes(app):
             class_filter=class_filter,
             section_filter=section_filter,
             search=search,
+            today=date.today().isoformat(),
         )
 
     @app.route("/students/export")
@@ -240,8 +267,13 @@ def register_routes(app):
     @login_required
     def student_ledger(student_id):
         student = Student.query.get_or_404(student_id)
-        transactions = student.transactions.order_by(Transaction.date, Transaction.id).all()
-        return render_template("student_ledger.html", student=student, transactions=transactions)
+        transactions = student.transactions.order_by(Transaction.date, Transaction.created_at, Transaction.id).all()
+        return render_template(
+            "student_ledger.html",
+            student=student,
+            transactions=transactions,
+            today=date.today().isoformat(),
+        )
 
     @app.route("/students/<int:student_id>/deposit", methods=["POST"])
     @login_required
@@ -260,18 +292,27 @@ def register_routes(app):
             flash("Enter a valid deposit amount.", "danger")
             return redirect(url_for("student_ledger", student_id=student.id))
 
-        new_balance = student.balance - amount
+        date_str = request.form.get("date", "").strip()
+        try:
+            txn_date = datetime.strptime(date_str, "%Y-%m-%d").date() if date_str else date.today()
+        except ValueError:
+            txn_date = date.today()
+        if txn_date > date.today():
+            txn_date = date.today()  # no future-dating
+
         txn = Transaction(
             student_id=student.id,
             txn_type="PAYMENT",
             category="Deposit",
             amount=amount,
-            date=date.today(),
+            date=txn_date,
             mode=request.form.get("mode", "Cash"),
             remarks=request.form.get("remarks", ""),
-            balance_after=new_balance,
+            balance_after=0,  # placeholder — recompute_balances sets the real value below
         )
         db.session.add(txn)
+        db.session.flush()
+        recompute_balances(student)
         db.session.commit()
 
         if is_ajax:
@@ -307,6 +348,40 @@ def register_routes(app):
         flash("Remark added.", "success")
         return redirect(url_for("student_ledger", student_id=student.id))
 
+    @app.route("/students/<int:student_id>/adjust", methods=["POST"])
+    @login_required
+    def adjust_fee(student_id):
+        student = Student.query.get_or_404(student_id)
+        try:
+            amount = float(request.form.get("amount", 0))
+        except ValueError:
+            amount = 0
+
+        if amount == 0:
+            flash("Enter a non-zero adjustment amount.", "danger")
+            return redirect(url_for("student_ledger", student_id=student.id))
+
+        reason = request.form.get("reason", "").strip() or "Fee adjustment"
+        category = "Discount" if amount < 0 else "Extra Charge"
+
+        txn = Transaction(
+            student_id=student.id,
+            txn_type="ADJUSTMENT",
+            category=category,
+            amount=amount,
+            date=date.today(),
+            remarks=reason,
+            balance_after=0,
+        )
+        db.session.add(txn)
+        db.session.flush()
+        recompute_balances(student)
+        db.session.commit()
+
+        verb = "reduced" if amount < 0 else "increased"
+        flash(f"{student.name}'s fee {verb} by Rs {abs(amount):,.2f}.", "success")
+        return redirect(url_for("student_ledger", student_id=student.id))
+
     @app.route("/students/<int:student_id>/promote", methods=["GET", "POST"])
     @login_required
     def promote_student(student_id):
@@ -323,18 +398,31 @@ def register_routes(app):
             student.class_name = new_class
             student.section = new_section
 
-            charge_amount = fee_row.total_for_promotion()
-            new_balance = student.balance + charge_amount
+            computed_total = fee_row.total_for_promotion()
+            override_str = request.form.get("override_amount", "").strip()
+            is_custom = bool(override_str)
+            try:
+                charge_amount = float(override_str) if is_custom else computed_total
+            except ValueError:
+                charge_amount = computed_total
+                is_custom = False
+
+            remarks = f"Promoted to Class {new_class} {new_section}"
+            if is_custom and charge_amount != computed_total:
+                remarks += f" (custom fee — standard is Rs {computed_total:,.0f})"
+
             txn = Transaction(
                 student_id=student.id,
                 txn_type="CHARGE",
                 category=f"Promotion Fee - Class {new_class}",
                 amount=charge_amount,
                 date=date.today(),
-                remarks=f"Promoted to Class {new_class} {new_section}",
-                balance_after=new_balance,
+                remarks=remarks,
+                balance_after=0,
             )
             db.session.add(txn)
+            db.session.flush()
+            recompute_balances(student)
             db.session.commit()
             flash(f"{student.name} promoted to Class {new_class} {new_section}.", "success")
             return redirect(url_for("student_ledger", student_id=student.id))
