@@ -20,11 +20,17 @@ $(function () {
   }
 
   function updateTotal() {
-    var total = fixedTuition + num($dressFee.val()) + num($bookFee.val()) + num($miscFee.val());
+    var total = num($dressFee.val()) + num($bookFee.val()) + num($miscFee.val());
+    var html;
     if (feeMode === 'admission') {
-      total += num($admissionFee.val());
+      total += fixedTuition + num($admissionFee.val());
+      html = '<div class="total">Total due now (incl. this month\'s tuition): ' + formatRupees(total) + '</div>'
+           + '<div>Tuition then recurs automatically every month: ' + formatRupees(fixedTuition) + '/month</div>';
+    } else {
+      html = '<div class="total">Total due now (one-time fees only): ' + formatRupees(total) + '</div>'
+           + '<div>New monthly tuition rate: ' + formatRupees(fixedTuition) + '/month, starting the next unbilled month</div>';
     }
-    $totalPreview.html('<div class="total">Total to charge: ' + formatRupees(total) + '</div>').show();
+    $totalPreview.html(html).show();
   }
 
   function loadFeeDefaults(className) {
@@ -35,7 +41,7 @@ $(function () {
     $.getJSON('/api/fee-structure/' + encodeURIComponent(className))
       .done(function (fee) {
         fixedTuition = fee.tuition_fee;
-        $tuitionDisplay.val(formatRupees(fee.tuition_fee) + ' / year');
+        $tuitionDisplay.val(formatRupees(fee.tuition_fee) + ' / month');
         if (feeMode === 'admission') {
           $admissionFee.val(fee.admission_fee);
         }

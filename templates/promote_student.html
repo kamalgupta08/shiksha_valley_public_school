@@ -7,7 +7,9 @@
 <div class="panel" style="max-width: 560px;">
   <h2>{{ student.name }} &mdash; currently {{ class_label(student.class_name) }}, Section {{ student.section }}</h2>
   <p style="color: var(--slate); font-size: 0.9rem;">
-    Promoting will charge fees for the target class (no admission fee is charged again).
+    Promoting charges this class's one-time dress/book/misc fees now (no admission fee).
+    Monthly tuition switches to the new class's rate automatically from the next unbilled month —
+    no separate action needed.
   </p>
   <form method="POST" action="{{ url_for('promote_student', student_id=student.id) }}" data-fee-mode="promotion">
     <div class="field-row">
@@ -33,11 +35,11 @@
       <h3 style="font-size: 0.95rem; margin-bottom: 4px;">Fees for This Promotion</h3>
       <p style="color: var(--slate); font-size: 0.82rem; margin-top: 0;">
         Prefilled from the new class's usual fees — edit any line for a discount or a different arrangement.
-        Tuition is fixed for the class and can't be changed here.
+        Tuition is fixed for the class and recurs automatically every month — it can't be changed here.
       </p>
       <div class="field-row">
         <div class="field">
-          <label for="tuition_fee_display">Tuition Fee — Annual (fixed)</label>
+          <label for="tuition_fee_display">Tuition Fee — Monthly (fixed)</label>
           <input type="text" id="tuition_fee_display" disabled>
         </div>
         <div class="field">

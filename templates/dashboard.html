@@ -5,6 +5,11 @@
 
 {% block content %}
 <div class="card-grid">
+  <div class="stat-card ok">
+    <div class="label">Today's Collection</div>
+    <div class="value">&#8377;{{ "{:,.0f}".format(todays_collection) }}</div>
+    <div class="sub">{{ todays_collection_count }} payment{{ '' if todays_collection_count == 1 else 's' }} today</div>
+  </div>
   <div class="stat-card">
     <div class="label">Active Students</div>
     <div class="value">{{ total_students }}</div>
@@ -14,13 +19,25 @@
     <div class="value">&#8377;{{ "{:,.0f}".format(total_pending) }}</div>
   </div>
   <div class="stat-card ok">
-    <div class="label">Total Collected</div>
+    <div class="label">Total Collected (All Time)</div>
     <div class="value">&#8377;{{ "{:,.0f}".format(total_collected) }}</div>
   </div>
   <div class="stat-card">
     <div class="label">Classes Active</div>
     <div class="value">{{ class_counts|length }}</div>
   </div>
+</div>
+
+<div class="panel">
+  <h2>Monthly Tuition</h2>
+  <p style="color: var(--slate); font-size: 0.85rem; margin-top: -6px;">
+    Tuition is generated automatically each month for every active student — you don't need to do
+    anything. This button is here if you ever want to check right now instead of waiting for the
+    next automatic check.
+  </p>
+  <form method="POST" action="{{ url_for('manual_generate_monthly_fees') }}">
+    <button type="submit" class="btn btn-outline btn-sm">Check / Generate Monthly Fees Now</button>
+  </form>
 </div>
 
 <div class="panel">

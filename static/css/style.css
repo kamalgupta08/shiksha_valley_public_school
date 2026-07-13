@@ -354,6 +354,7 @@ img { max-width: 100%; display: block; }
 }
 .stat-card .label { font-family: var(--font-mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--slate); }
 .stat-card .value { font-family: var(--font-display); font-size: 1.9rem; font-weight: 700; color: var(--forest-dark); margin-top: 6px; }
+.stat-card .sub { font-size: 0.78rem; color: var(--slate); margin-top: 4px; }
 .stat-card.warn .value { color: var(--red); }
 .stat-card.ok .value { color: var(--green-ok); }
 

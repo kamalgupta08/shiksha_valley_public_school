@@ -1,17 +1,21 @@
 import csv
 import io
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 
 from flask import (
     Flask, render_template, request, redirect, url_for,
     session, flash, jsonify, Response
 )
+from sqlalchemy import inspect, text
 
 from config import Config
 from extensions import db
 from models import FeeStructure, Student, Transaction, StudentNote
-from utils import login_required, generate_admission_number, recompute_balances
+from utils import (
+    login_required, generate_admission_number, recompute_balances,
+    generate_monthly_tuition_charges, generate_all_due_monthly_fees,
+)
 
 
 def create_app():
@@ -21,11 +25,27 @@ def create_app():
 
     with app.app_context():
         db.create_all()
+        _ensure_schema_migrations()
         _seed_fee_structure_if_empty()
 
     register_routes(app)
     _register_template_filters(app)
     return app
+
+
+def _ensure_schema_migrations():
+    """db.create_all() only creates tables that don't exist yet — it never adds
+    columns to a table that's already there. This patches existing databases
+    (e.g. already-deployed ones) with columns added by later versions of the app,
+    without touching any existing data."""
+    inspector = inspect(db.engine)
+    if "transactions" not in inspector.get_table_names():
+        return  # fresh database — create_all already built it with every column
+    existing_cols = {c["name"] for c in inspector.get_columns("transactions")}
+    if "fee_period" not in existing_cols:
+        with db.engine.connect() as conn:
+            conn.execute(text("ALTER TABLE transactions ADD COLUMN fee_period DATE"))
+            conn.commit()
 
 
 def _register_template_filters(app):
@@ -55,16 +75,16 @@ def _seed_fee_structure_if_empty():
     a class you've already customized, so this is safe to run on every
     deploy/restart, even after you've edited real fee amounts."""
     defaults = {
-        "Nursery": dict(admission_fee=1800, tuition_fee=10000, dress_fee=1200, book_fee=1200, misc_fee=800),
-        "KG": dict(admission_fee=2000, tuition_fee=12000, dress_fee=1500, book_fee=1500, misc_fee=1000),
-        "UKG": dict(admission_fee=2200, tuition_fee=13000, dress_fee=1500, book_fee=1700, misc_fee=1000),
-        "1": dict(admission_fee=2500, tuition_fee=14000, dress_fee=1500, book_fee=2000, misc_fee=1000),
-        "2": dict(admission_fee=2500, tuition_fee=14000, dress_fee=1500, book_fee=2000, misc_fee=1000),
-        "3": dict(admission_fee=2500, tuition_fee=15000, dress_fee=1500, book_fee=2200, misc_fee=1200),
-        "4": dict(admission_fee=2500, tuition_fee=15000, dress_fee=1500, book_fee=2200, misc_fee=1200),
-        "5": dict(admission_fee=3000, tuition_fee=16000, dress_fee=1500, book_fee=2500, misc_fee=1200),
-        "6": dict(admission_fee=3000, tuition_fee=17000, dress_fee=1500, book_fee=2500, misc_fee=1500),
-        "7": dict(admission_fee=3000, tuition_fee=17000, dress_fee=1500, book_fee=2800, misc_fee=1500),
+        "Nursery": dict(admission_fee=1800, tuition_fee=800, dress_fee=1200, book_fee=1200, misc_fee=800),
+        "KG": dict(admission_fee=2000, tuition_fee=1000, dress_fee=1500, book_fee=1500, misc_fee=1000),
+        "UKG": dict(admission_fee=2200, tuition_fee=1100, dress_fee=1500, book_fee=1700, misc_fee=1000),
+        "1": dict(admission_fee=2500, tuition_fee=1200, dress_fee=1500, book_fee=2000, misc_fee=1000),
+        "2": dict(admission_fee=2500, tuition_fee=1200, dress_fee=1500, book_fee=2000, misc_fee=1000),
+        "3": dict(admission_fee=2500, tuition_fee=1250, dress_fee=1500, book_fee=2200, misc_fee=1200),
+        "4": dict(admission_fee=2500, tuition_fee=1250, dress_fee=1500, book_fee=2200, misc_fee=1200),
+        "5": dict(admission_fee=3000, tuition_fee=1300, dress_fee=1500, book_fee=2500, misc_fee=1200),
+        "6": dict(admission_fee=3000, tuition_fee=1400, dress_fee=1500, book_fee=2500, misc_fee=1500),
+        "7": dict(admission_fee=3000, tuition_fee=1400, dress_fee=1500, book_fee=2800, misc_fee=1500),
     }
     existing_classes = {row.class_name for row in FeeStructure.query.all()}
     added = False
@@ -77,6 +97,21 @@ def _seed_fee_structure_if_empty():
 
 
 def register_routes(app):
+
+    @app.before_request
+    def _auto_generate_monthly_fees():
+        if request.endpoint in (None, "static") or not session.get("logged_in"):
+            return
+        today_str = date.today().isoformat()
+        if session.get("fees_generated_on") == today_str:
+            return
+        session["fees_generated_on"] = today_str
+        total_created, students_affected = generate_all_due_monthly_fees()
+        if total_created:
+            flash(
+                f"Generated {total_created} monthly tuition charge(s) for {students_affected} student(s) "
+                f"who were due.", "info"
+            )
 
     # ---------- Public site ----------
     @app.route("/")
@@ -102,6 +137,16 @@ def register_routes(app):
         flash("You have been logged out.", "info")
         return redirect(url_for("index"))
 
+    @app.route("/admin/generate-monthly-fees", methods=["POST"])
+    @login_required
+    def manual_generate_monthly_fees():
+        total_created, students_affected = generate_all_due_monthly_fees()
+        if total_created:
+            flash(f"Generated {total_created} monthly tuition charge(s) for {students_affected} student(s).", "success")
+        else:
+            flash("Everyone is already up to date on monthly tuition.", "info")
+        return redirect(url_for("dashboard"))
+
     # ---------- Dashboard ----------
     @app.route("/dashboard")
     @login_required
@@ -112,6 +157,23 @@ def register_routes(app):
         total_collected = round(
             sum(float(t.amount) for t in Transaction.query.filter_by(txn_type="PAYMENT").all()), 2
         )
+
+        # "Today" in India time, converted to the UTC range used for created_at comparisons
+        ist = ZoneInfo("Asia/Kolkata")
+        now_ist = datetime.now(ist)
+        ist_day_start = datetime(now_ist.year, now_ist.month, now_ist.day, tzinfo=ist)
+        ist_day_end = ist_day_start + timedelta(days=1)
+        utc_day_start = ist_day_start.astimezone(timezone.utc).replace(tzinfo=None)
+        utc_day_end = ist_day_end.astimezone(timezone.utc).replace(tzinfo=None)
+
+        todays_payments = Transaction.query.filter(
+            Transaction.txn_type == "PAYMENT",
+            Transaction.created_at >= utc_day_start,
+            Transaction.created_at < utc_day_end,
+        ).all()
+        todays_collection = round(sum(float(t.amount) for t in todays_payments), 2)
+        todays_collection_count = len(todays_payments)
+
         class_counts = {}
         for s in students:
             class_counts[s.class_name] = class_counts.get(s.class_name, 0) + 1
@@ -128,6 +190,8 @@ def register_routes(app):
             total_students=total_students,
             total_pending=total_pending,
             total_collected=total_collected,
+            todays_collection=todays_collection,
+            todays_collection_count=todays_collection_count,
             class_counts=class_counts,
             recent_payments=recent_payments,
         )
@@ -177,12 +241,11 @@ def register_routes(app):
                 except ValueError:
                     return float(default)
 
-            # Tuition is always the class's fixed rate — never taken from the form.
-            # Every other fee is editable per student, defaulting to the class's
-            # usual amount but overridable for discounts or different arrangements.
+            # One-time charges only here. Tuition is handled separately below by
+            # generate_monthly_tuition_charges, which also covers the admission
+            # month itself and recurs automatically every month after.
             line_items = [
                 ("Admission Fee", line_amount("admission_fee", fee_row.admission_fee)),
-                ("Tuition Fee (Annual)", float(fee_row.tuition_fee)),
                 ("Dress Fee", line_amount("dress_fee", fee_row.dress_fee)),
                 ("Book Fee", line_amount("book_fee", fee_row.book_fee)),
                 ("Misc. Fee", line_amount("misc_fee", fee_row.misc_fee)),
@@ -201,6 +264,8 @@ def register_routes(app):
                 ))
 
             db.session.flush()
+            # Backdated admissions correctly back-fill every owed month up to today.
+            generate_monthly_tuition_charges(student, upto_date=date.today())
             recompute_balances(student)
             db.session.commit()
 
@@ -493,9 +558,10 @@ def register_routes(app):
                 except ValueError:
                     return float(default)
 
-            # No admission fee on promotion — that's one-time only.
+            # No admission fee on promotion, and no immediate tuition charge either —
+            # generate_monthly_tuition_charges (below) picks up the new class's rate
+            # automatically starting from whatever month isn't already billed.
             line_items = [
-                ("Tuition Fee (Annual)", float(fee_row.tuition_fee)),
                 ("Dress Fee", line_amount("dress_fee", fee_row.dress_fee)),
                 ("Book Fee", line_amount("book_fee", fee_row.book_fee)),
                 ("Misc. Fee", line_amount("misc_fee", fee_row.misc_fee)),
@@ -514,6 +580,7 @@ def register_routes(app):
                 ))
 
             db.session.flush()
+            generate_monthly_tuition_charges(student, upto_date=date.today())
             recompute_balances(student)
             db.session.commit()
             flash(f"{student.name} promoted to Class {new_class} {new_section}.", "success")

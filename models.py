@@ -10,7 +10,7 @@ class FeeStructure(db.Model):
     class_name = db.Column(db.String(10), unique=True, nullable=False)
 
     admission_fee = db.Column(db.Numeric(10, 2), nullable=False, default=0)   # one-time, new admissions only
-    tuition_fee = db.Column(db.Numeric(10, 2), nullable=False, default=0)     # annual
+    tuition_fee = db.Column(db.Numeric(10, 2), nullable=False, default=0)     # monthly
     dress_fee = db.Column(db.Numeric(10, 2), nullable=False, default=0)
     book_fee = db.Column(db.Numeric(10, 2), nullable=False, default=0)
     misc_fee = db.Column(db.Numeric(10, 2), nullable=False, default=0)
@@ -128,6 +128,7 @@ class Transaction(db.Model):
     remarks = db.Column(db.String(255), nullable=True)
     balance_after = db.Column(db.Numeric(10, 2), nullable=False, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    fee_period = db.Column(db.Date, nullable=True)  # first-of-month marker, only set for monthly tuition charges
 
     def to_dict(self):
         return {
