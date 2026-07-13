@@ -280,6 +280,11 @@ img { max-width: 100%; display: block; }
   border-color: var(--gold);
   outline: none;
 }
+.field input:disabled {
+  background: var(--forest-tint);
+  color: var(--slate);
+  cursor: not-allowed;
+}
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
 .flash-list { margin-bottom: 18px; }

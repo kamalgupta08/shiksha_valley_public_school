@@ -12,7 +12,7 @@
     </div>
     <div class="item">
       <div class="label">Class</div>
-      <div class="value" style="font-size:1.1rem;">{{ student.class_name }} - {{ student.section }}</div>
+      <div class="value" style="font-size:1.1rem;">{{ class_label(student.class_name) }} - {{ student.section }}</div>
     </div>
     <div class="item">
       <div class="label">Guardian</div>
@@ -25,6 +25,7 @@
       </div>
     </div>
   </div>
+  <a href="{{ url_for('edit_student', student_id=student.id) }}" class="btn btn-outline btn-sm">Edit Details</a>
   <a href="{{ url_for('promote_student', student_id=student.id) }}" class="btn btn-outline btn-sm">Promote to Next Class</a>
 </div>
 
@@ -118,6 +119,7 @@
         <th>Mode</th>
         <th class="num-cell">Amount</th>
         <th class="num-cell">Balance After</th>
+        <th>Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -137,6 +139,13 @@
         <td>{{ t.mode or '—' }}</td>
         <td class="num-cell">{{ '-' if t.amount < 0 else '' }}&#8377;{{ "{:,.0f}".format(t.amount|abs) }}</td>
         <td class="num-cell">&#8377;{{ "{:,.0f}".format(t.balance_after) }}</td>
+        <td style="white-space: nowrap;">
+          <a href="{{ url_for('edit_transaction', txn_id=t.id) }}" class="btn btn-outline btn-sm">Edit</a>
+          <form method="POST" action="{{ url_for('delete_transaction', txn_id=t.id) }}" style="display:inline;"
+                onsubmit="return confirm('Delete this entry? The balance will be recalculated. This cannot be undone.');">
+            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+          </form>
+        </td>
       </tr>
       {% endfor %}
     </tbody>

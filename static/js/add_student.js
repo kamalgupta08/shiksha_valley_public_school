@@ -1,44 +1,66 @@
 $(function () {
   var $classSelect = $('#class_name');
-  var $preview = $('#fee-preview');
-  var $overrideField = $('#override-field');
-  var $overrideInput = $('#override_amount');
+  var $feeSection = $('#fee-section');
+  var $totalPreview = $('#fee-total-preview');
+  var $admissionFee = $('#admission_fee');   // only present in admission mode
+  var $tuitionDisplay = $('#tuition_fee_display');
+  var $dressFee = $('#dress_fee');
+  var $bookFee = $('#book_fee');
+  var $miscFee = $('#misc_fee');
   var feeMode = $classSelect.closest('form').data('fee-mode') || 'admission';
+  var fixedTuition = 0;
 
   function formatRupees(amount) {
-    return '₹' + Number(amount).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+    return '₹' + Number(amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
   }
 
-  function loadFeePreview(className) {
+  function num(val) {
+    var n = parseFloat(val);
+    return isNaN(n) ? 0 : n;
+  }
+
+  function updateTotal() {
+    var total = fixedTuition + num($dressFee.val()) + num($bookFee.val()) + num($miscFee.val());
+    if (feeMode === 'admission') {
+      total += num($admissionFee.val());
+    }
+    $totalPreview.html('<div class="total">Total to charge: ' + formatRupees(total) + '</div>').show();
+  }
+
+  function loadFeeDefaults(className) {
     if (!className) {
-      $preview.hide();
-      $overrideField.hide();
+      $feeSection.hide();
       return;
     }
     $.getJSON('/api/fee-structure/' + encodeURIComponent(className))
       .done(function (fee) {
-        var relevantTotal = feeMode === 'promotion' ? fee.total_promotion : fee.total_new_admission;
-        var totalLabel = feeMode === 'promotion' ? 'Standard total for this class' : 'Standard total on admission';
-        var html = ''
-          + (feeMode === 'promotion' ? '' : '<div>Admission Fee: ' + formatRupees(fee.admission_fee) + '</div>')
-          + '<div>Tuition Fee (annual): ' + formatRupees(fee.tuition_fee) + '</div>'
-          + '<div>Dress Fee: ' + formatRupees(fee.dress_fee) + '</div>'
-          + '<div>Book Fee: ' + formatRupees(fee.book_fee) + '</div>'
-          + '<div>Misc. Fee: ' + formatRupees(fee.misc_fee) + '</div>'
-          + '<div class="total">' + totalLabel + ': ' + formatRupees(relevantTotal) + '</div>';
-        $preview.html(html).show();
-        $overrideInput.val(relevantTotal);
-        $overrideField.show();
+        fixedTuition = fee.tuition_fee;
+        $tuitionDisplay.val(formatRupees(fee.tuition_fee) + ' / year');
+        if (feeMode === 'admission') {
+          $admissionFee.val(fee.admission_fee);
+        }
+        $dressFee.val(fee.dress_fee);
+        $bookFee.val(fee.book_fee);
+        $miscFee.val(fee.misc_fee);
+        $feeSection.show();
+        updateTotal();
       })
       .fail(function () {
-        $preview.html('<div>No fee structure set for this class yet. Set it up under Fee Structure.</div>').show();
-        $overrideField.hide();
+        $totalPreview.html('<div>No fee structure set for this class yet. Set it up under Fee Structure.</div>').show();
+        $feeSection.show();
       });
   }
 
   $classSelect.on('change', function () {
-    loadFeePreview($(this).val());
+    loadFeeDefaults($(this).val());
   });
 
-  loadFeePreview($classSelect.val());
+  $dressFee.on('input', updateTotal);
+  $bookFee.on('input', updateTotal);
+  $miscFee.on('input', updateTotal);
+  if (feeMode === 'admission') {
+    $admissionFee.on('input', updateTotal);
+  }
+
+  loadFeeDefaults($classSelect.val());
 });

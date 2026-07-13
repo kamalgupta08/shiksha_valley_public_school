@@ -30,7 +30,10 @@
       <thead><tr><th>Class</th><th>Students</th></tr></thead>
       <tbody>
         {% for class_name, count in class_counts.items() %}
-        <tr><td>{{ class_name }}</td><td>{{ count }}</td></tr>
+        <tr>
+          <td><a href="{{ url_for('students_list', class_name=class_name) }}">{{ class_label(class_name) }}</a></td>
+          <td>{{ count }}</td>
+        </tr>
         {% endfor %}
       </tbody>
     </table>

@@ -4,7 +4,7 @@
 {% block page_title %}Add New Student{% endblock %}
 
 {% block content %}
-<div class="panel" style="max-width: 720px;">
+<div class="panel" style="max-width: 760px;">
   <h2>Student Details</h2>
   <form method="POST" action="{{ url_for('add_student') }}" id="add-student-form" data-fee-mode="admission">
     <div class="field-row">
@@ -28,8 +28,8 @@
         <input type="date" id="dob" name="dob">
       </div>
       <div class="field">
-        <label for="admission_date_display">Admission Date</label>
-        <input type="text" id="admission_date_display" value="Today" disabled>
+        <label for="admission_date">Admission Date</label>
+        <input type="date" id="admission_date" name="admission_date" value="{{ today }}">
       </div>
     </div>
 
@@ -54,11 +54,37 @@
       </div>
     </div>
 
-    <div id="fee-preview" class="fee-preview" style="display:none;"></div>
-
-    <div class="field" id="override-field" style="display:none; margin-top: 14px;">
-      <label for="override_amount">Total Fee to Charge (editable — leave as-is unless this student gets a different amount)</label>
-      <input type="number" id="override_amount" name="override_amount" step="0.01" min="0">
+    <div id="fee-section" style="display:none; margin-top: 8px;">
+      <h3 style="font-size: 0.95rem; margin-bottom: 4px;">Fees for This Student</h3>
+      <p style="color: var(--slate); font-size: 0.82rem; margin-top: 0;">
+        Prefilled from the class's usual fees — edit any line for a discount or a different arrangement.
+        Tuition is fixed for the class and can't be changed here.
+      </p>
+      <div class="field-row">
+        <div class="field">
+          <label for="admission_fee">Admission Fee (&#8377;)</label>
+          <input type="number" id="admission_fee" name="admission_fee" step="0.01" min="0">
+        </div>
+        <div class="field">
+          <label for="tuition_fee_display">Tuition Fee — Annual (fixed)</label>
+          <input type="text" id="tuition_fee_display" disabled>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="dress_fee">Dress Fee (&#8377;)</label>
+          <input type="number" id="dress_fee" name="dress_fee" step="0.01" min="0">
+        </div>
+        <div class="field">
+          <label for="book_fee">Book Fee (&#8377;)</label>
+          <input type="number" id="book_fee" name="book_fee" step="0.01" min="0">
+        </div>
+      </div>
+      <div class="field">
+        <label for="misc_fee">Miscellaneous Fee (&#8377;)</label>
+        <input type="number" id="misc_fee" name="misc_fee" step="0.01" min="0">
+      </div>
+      <div class="fee-preview" id="fee-total-preview"></div>
     </div>
 
     <div class="field-row" style="margin-top: 18px;">

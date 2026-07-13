@@ -71,6 +71,15 @@ class Student(db.Model):
         adjustments = sum(float(t.amount) for t in self.transactions if t.txn_type == "ADJUSTMENT")
         return round(charges - payments + adjustments, 2)
 
+    @property
+    def last_payment_date(self):
+        last = (
+            self.transactions.filter_by(txn_type="PAYMENT")
+            .order_by(Transaction.date.desc(), Transaction.created_at.desc())
+            .first()
+        )
+        return last.date if last else None
+
     def to_dict(self):
         return {
             "id": self.id,

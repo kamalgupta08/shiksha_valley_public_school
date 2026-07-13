@@ -6,10 +6,15 @@
 {% block content %}
 <div class="panel">
   <h2>Current Fee Structure</h2>
+  <p style="color: var(--slate); font-size: 0.85rem; margin-top: -8px;">
+    <strong>Tuition (Annual)</strong> is fixed for every student in a class. Admission, Dress, Book,
+    and Misc. fees set here are just the <strong>defaults</strong> that prefill new admissions and
+    promotions — staff can still edit those four for an individual student on their own form.
+  </p>
   <table class="data-table">
     <thead>
-      <tr><th>Class</th><th class="num-cell">Admission</th><th class="num-cell">Tuition (Annual)</th>
-        <th class="num-cell">Dress</th><th class="num-cell">Books</th><th class="num-cell">Misc.</th>
+      <tr><th>Class</th><th class="num-cell">Admission (default)</th><th class="num-cell">Tuition (fixed)</th>
+        <th class="num-cell">Dress (default)</th><th class="num-cell">Books (default)</th><th class="num-cell">Misc. (default)</th>
         <th class="num-cell">New Admission Total</th></tr>
     </thead>
     <tbody>
@@ -30,10 +35,11 @@
 
 <div class="panel" style="max-width: 640px;">
   <h2>Update a Class's Fees</h2>
-  <form method="POST" action="{{ url_for('fee_structure') }}">
+  <form method="POST" action="{{ url_for('fee_structure') }}" id="fee-structure-form">
     <div class="field">
       <label for="class_name">Class</label>
       <select id="class_name" name="class_name" required>
+        <option value="">Select class</option>
         {% for c in classes %}
         <option value="{{ c }}">{{ class_label(c) }}</option>
         {% endfor %}
@@ -41,33 +47,33 @@
     </div>
     <div class="field-row">
       <div class="field">
-        <label for="admission_fee">Admission Fee (one-time)</label>
+        <label for="admission_fee">Admission Fee (default, one-time)</label>
         <input type="number" id="admission_fee" name="admission_fee" step="0.01" min="0" required>
       </div>
       <div class="field">
-        <label for="tuition_fee">Tuition Fee (annual)</label>
+        <label for="tuition_fee">Tuition Fee (annual, fixed for this class)</label>
         <input type="number" id="tuition_fee" name="tuition_fee" step="0.01" min="0" required>
       </div>
     </div>
     <div class="field-row">
       <div class="field">
-        <label for="dress_fee">Dress Fee</label>
+        <label for="dress_fee">Dress Fee (default)</label>
         <input type="number" id="dress_fee" name="dress_fee" step="0.01" min="0" required>
       </div>
       <div class="field">
-        <label for="book_fee">Book Fee</label>
+        <label for="book_fee">Book Fee (default)</label>
         <input type="number" id="book_fee" name="book_fee" step="0.01" min="0" required>
       </div>
     </div>
     <div class="field">
-      <label for="misc_fee">Miscellaneous Fee</label>
+      <label for="misc_fee">Miscellaneous Fee (default)</label>
       <input type="number" id="misc_fee" name="misc_fee" step="0.01" min="0" required>
     </div>
     <button type="submit" class="btn btn-primary">Save Fee Structure</button>
   </form>
-  <p style="color: var(--slate); font-size: 0.82rem; margin-top: 10px;">
-    Tip: select an existing class above and its saved values will need to be re-entered here to update them
-    (the form doesn't auto-fill yet — worth asking Claude for that enhancement if you'd like it).
-  </p>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/fee_structure.js') }}"></script>
 {% endblock %}

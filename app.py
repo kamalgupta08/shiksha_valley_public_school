@@ -146,6 +146,15 @@ def register_routes(app):
             dob_str = request.form.get("dob")
             dob_val = datetime.strptime(dob_str, "%Y-%m-%d").date() if dob_str else None
 
+            admission_date_str = request.form.get("admission_date", "").strip()
+            try:
+                admission_date_val = (
+                    datetime.strptime(admission_date_str, "%Y-%m-%d").date()
+                    if admission_date_str else date.today()
+                )
+            except ValueError:
+                admission_date_val = date.today()
+
             student = Student(
                 admission_number=generate_admission_number(),
                 name=request.form.get("name", "").strip(),
@@ -156,34 +165,41 @@ def register_routes(app):
                 guardian_name=request.form.get("guardian_name", "").strip(),
                 contact_number=request.form.get("contact_number", "").strip(),
                 address=request.form.get("address", "").strip(),
-                admission_date=date.today(),
+                admission_date=admission_date_val,
             )
             db.session.add(student)
             db.session.flush()  # get student.id before commit
 
-            computed_total = fee_row.total_for_new_admission()
-            override_str = request.form.get("override_amount", "").strip()
-            is_custom = bool(override_str)
-            try:
-                charge_amount = float(override_str) if is_custom else computed_total
-            except ValueError:
-                charge_amount = computed_total
-                is_custom = False
+            def line_amount(field_name, default):
+                raw = request.form.get(field_name, "").strip()
+                try:
+                    return float(raw) if raw else float(default)
+                except ValueError:
+                    return float(default)
 
-            remarks = f"Admission to Class {class_name} {student.section}"
-            if is_custom and charge_amount != computed_total:
-                remarks += f" (custom fee — standard is Rs {computed_total:,.0f})"
+            # Tuition is always the class's fixed rate — never taken from the form.
+            # Every other fee is editable per student, defaulting to the class's
+            # usual amount but overridable for discounts or different arrangements.
+            line_items = [
+                ("Admission Fee", line_amount("admission_fee", fee_row.admission_fee)),
+                ("Tuition Fee (Annual)", float(fee_row.tuition_fee)),
+                ("Dress Fee", line_amount("dress_fee", fee_row.dress_fee)),
+                ("Book Fee", line_amount("book_fee", fee_row.book_fee)),
+                ("Misc. Fee", line_amount("misc_fee", fee_row.misc_fee)),
+            ]
+            for category, amount in line_items:
+                if amount == 0:
+                    continue
+                db.session.add(Transaction(
+                    student_id=student.id,
+                    txn_type="CHARGE",
+                    category=category,
+                    amount=amount,
+                    date=admission_date_val,
+                    remarks=f"New admission — Class {class_name} {student.section}",
+                    balance_after=0,
+                ))
 
-            txn = Transaction(
-                student_id=student.id,
-                txn_type="CHARGE",
-                category="New Admission Fee",
-                amount=charge_amount,
-                date=date.today(),
-                remarks=remarks,
-                balance_after=charge_amount,
-            )
-            db.session.add(txn)
             db.session.flush()
             recompute_balances(student)
             db.session.commit()
@@ -193,6 +209,33 @@ def register_routes(app):
 
         return render_template(
             "add_student.html",
+            classes=app.config["CLASS_LIST"],
+            sections=app.config["SECTION_LIST"],
+            today=date.today().isoformat(),
+        )
+
+    @app.route("/students/<int:student_id>/edit", methods=["GET", "POST"])
+    @login_required
+    def edit_student(student_id):
+        student = Student.query.get_or_404(student_id)
+
+        if request.method == "POST":
+            dob_str = request.form.get("dob")
+            student.name = request.form.get("name", "").strip()
+            student.gender = request.form.get("gender")
+            student.dob = datetime.strptime(dob_str, "%Y-%m-%d").date() if dob_str else None
+            student.class_name = request.form.get("class_name")
+            student.section = request.form.get("section")
+            student.guardian_name = request.form.get("guardian_name", "").strip()
+            student.contact_number = request.form.get("contact_number", "").strip()
+            student.address = request.form.get("address", "").strip()
+            db.session.commit()
+            flash(f"{student.name}'s details updated.", "success")
+            return redirect(url_for("student_ledger", student_id=student.id))
+
+        return render_template(
+            "edit_student.html",
+            student=student,
             classes=app.config["CLASS_LIST"],
             sections=app.config["SECTION_LIST"],
         )
@@ -382,6 +425,51 @@ def register_routes(app):
         flash(f"{student.name}'s fee {verb} by Rs {abs(amount):,.2f}.", "success")
         return redirect(url_for("student_ledger", student_id=student.id))
 
+    @app.route("/transactions/<int:txn_id>/edit", methods=["GET", "POST"])
+    @login_required
+    def edit_transaction(txn_id):
+        txn = Transaction.query.get_or_404(txn_id)
+        student = txn.student
+
+        if request.method == "POST":
+            try:
+                amount = float(request.form.get("amount", 0))
+            except ValueError:
+                amount = float(txn.amount)
+
+            date_str = request.form.get("date", "").strip()
+            try:
+                if date_str:
+                    txn.date = datetime.strptime(date_str, "%Y-%m-%d").date()
+            except ValueError:
+                pass
+
+            txn.amount = amount
+            txn.remarks = request.form.get("remarks", "").strip()
+            if txn.txn_type == "PAYMENT":
+                txn.mode = request.form.get("mode", txn.mode)
+
+            db.session.flush()
+            recompute_balances(student)
+            db.session.commit()
+            flash("Entry updated.", "success")
+            return redirect(url_for("student_ledger", student_id=student.id))
+
+        return render_template("edit_transaction.html", txn=txn, student=student, today=date.today().isoformat())
+
+    @app.route("/transactions/<int:txn_id>/delete", methods=["POST"])
+    @login_required
+    def delete_transaction(txn_id):
+        txn = Transaction.query.get_or_404(txn_id)
+        student = txn.student
+        student_id = student.id
+        db.session.delete(txn)
+        db.session.flush()
+        recompute_balances(student)
+        db.session.commit()
+        flash("Entry deleted.", "success")
+        return redirect(url_for("student_ledger", student_id=student_id))
+
     @app.route("/students/<int:student_id>/promote", methods=["GET", "POST"])
     @login_required
     def promote_student(student_id):
@@ -398,29 +486,33 @@ def register_routes(app):
             student.class_name = new_class
             student.section = new_section
 
-            computed_total = fee_row.total_for_promotion()
-            override_str = request.form.get("override_amount", "").strip()
-            is_custom = bool(override_str)
-            try:
-                charge_amount = float(override_str) if is_custom else computed_total
-            except ValueError:
-                charge_amount = computed_total
-                is_custom = False
+            def line_amount(field_name, default):
+                raw = request.form.get(field_name, "").strip()
+                try:
+                    return float(raw) if raw else float(default)
+                except ValueError:
+                    return float(default)
 
-            remarks = f"Promoted to Class {new_class} {new_section}"
-            if is_custom and charge_amount != computed_total:
-                remarks += f" (custom fee — standard is Rs {computed_total:,.0f})"
+            # No admission fee on promotion — that's one-time only.
+            line_items = [
+                ("Tuition Fee (Annual)", float(fee_row.tuition_fee)),
+                ("Dress Fee", line_amount("dress_fee", fee_row.dress_fee)),
+                ("Book Fee", line_amount("book_fee", fee_row.book_fee)),
+                ("Misc. Fee", line_amount("misc_fee", fee_row.misc_fee)),
+            ]
+            for category, amount in line_items:
+                if amount == 0:
+                    continue
+                db.session.add(Transaction(
+                    student_id=student.id,
+                    txn_type="CHARGE",
+                    category=f"{category} — Class {new_class}",
+                    amount=amount,
+                    date=date.today(),
+                    remarks=f"Promoted to Class {new_class} {new_section}",
+                    balance_after=0,
+                ))
 
-            txn = Transaction(
-                student_id=student.id,
-                txn_type="CHARGE",
-                category=f"Promotion Fee - Class {new_class}",
-                amount=charge_amount,
-                date=date.today(),
-                remarks=remarks,
-                balance_after=0,
-            )
-            db.session.add(txn)
             db.session.flush()
             recompute_balances(student)
             db.session.commit()
