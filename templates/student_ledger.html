@@ -47,8 +47,13 @@
       </div>
     </div>
     <div class="field">
-      <label for="date">Date Received</label>
+      <label for="date">Date Money Was Received</label>
       <input type="date" id="date" name="date" value="{{ today }}" max="{{ today }}">
+      <p class="field-hint">
+        This is when the cash/UPI actually came in — not the fee period it's paying off.
+        Collecting today for an old due (e.g. April fees)? Still leave this as today's date.
+        Only change this if you're entering a payment that was physically received on a past date.
+      </p>
     </div>
     <div class="field">
       <label for="remarks">Remarks (optional)</label>
@@ -113,7 +118,8 @@
   <table class="data-table">
     <thead>
       <tr>
-        <th>Date &amp; Time</th>
+        <th>Date</th>
+        <th>Entered On</th>
         <th>Type</th>
         <th>Description</th>
         <th>Mode</th>
@@ -125,6 +131,7 @@
     <tbody>
       {% for t in transactions %}
       <tr>
+        <td style="white-space: nowrap;">{{ t.date.strftime('%d %b %Y') }}</td>
         <td style="white-space: nowrap;">{{ t.created_at | ist }}</td>
         <td>
           {% if t.txn_type == 'CHARGE' %}

@@ -285,6 +285,12 @@ img { max-width: 100%; display: block; }
   color: var(--slate);
   cursor: not-allowed;
 }
+.field-hint {
+  font-size: 0.78rem;
+  color: var(--slate);
+  margin: 6px 0 0;
+  line-height: 1.4;
+}
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
 .flash-list { margin-bottom: 18px; }
@@ -381,6 +387,7 @@ table.data-table th {
 }
 table.data-table td { padding: 12px; border-bottom: 1px solid #EFEBE0; }
 table.data-table tbody tr:hover { background: var(--forest-tint); }
+table.data-table tfoot td { border-top: 2px solid var(--gold-light); border-bottom: none; padding-top: 12px; }
 .num-cell { font-family: var(--font-mono); font-weight: 600; text-align: right; }
 .due { color: var(--red); }
 .clear { color: var(--green-ok); }
@@ -434,6 +441,7 @@ table.data-table tbody tr:hover { background: var(--forest-tint); }
 .inline-collect-form input[name="amount"] { width: 110px; }
 .inline-collect-form input[type="date"] { width: 150px; }
 .inline-panel-status { font-size: 0.78rem; font-weight: 600; }
+.inline-panel-hint { font-size: 0.72rem; color: var(--slate); font-style: italic; }
 
 .empty-state { text-align: center; padding: 50px 20px; color: var(--slate); }
 .empty-state h3 { color: var(--forest-dark); }

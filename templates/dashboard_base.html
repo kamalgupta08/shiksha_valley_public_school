@@ -16,6 +16,7 @@
       <a class="nav-link {% if active == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">Dashboard</a>
       <a class="nav-link {% if active == 'add_student' %}active{% endif %}" href="{{ url_for('add_student') }}">Add New Student</a>
       <a class="nav-link {% if active == 'students' %}active{% endif %}" href="{{ url_for('students_list') }}">Students &amp; Fees</a>
+      <a class="nav-link {% if active == 'daily_report' %}active{% endif %}" href="{{ url_for('daily_collection_report') }}">Daily Collection Report</a>
       <a class="nav-link {% if active == 'fee_structure' %}active{% endif %}" href="{{ url_for('fee_structure') }}">Fee Structure</a>
       <a class="nav-link logout" href="{{ url_for('logout') }}">Log Out</a>
     </aside>

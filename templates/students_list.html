@@ -83,7 +83,9 @@
               <option value="Online">Online / UPI</option>
               <option value="Cheque">Cheque</option>
             </select>
-            <input type="date" name="date" value="{{ today }}" max="{{ today }}">
+            <input type="date" name="date" value="{{ today }}" max="{{ today }}"
+                   title="Date money was received — not the fee period it covers. Paying today for an old due? Leave this as today.">
+            <span class="inline-panel-hint">(date money received, not fee period)</span>
             <input type="text" name="remarks" placeholder="Remark for this deposit (optional)">
             <button type="submit" class="btn btn-primary btn-sm">Save Deposit</button>
             <span class="inline-panel-status"></span>

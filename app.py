@@ -1,6 +1,6 @@
 import csv
 import io
-from datetime import date, datetime, timezone, timedelta
+from datetime import date, datetime, timezone
 from zoneinfo import ZoneInfo
 
 from flask import (
@@ -158,18 +158,12 @@ def register_routes(app):
             sum(float(t.amount) for t in Transaction.query.filter_by(txn_type="PAYMENT").all()), 2
         )
 
-        # "Today" in India time, converted to the UTC range used for created_at comparisons
-        ist = ZoneInfo("Asia/Kolkata")
-        now_ist = datetime.now(ist)
-        ist_day_start = datetime(now_ist.year, now_ist.month, now_ist.day, tzinfo=ist)
-        ist_day_end = ist_day_start + timedelta(days=1)
-        utc_day_start = ist_day_start.astimezone(timezone.utc).replace(tzinfo=None)
-        utc_day_end = ist_day_end.astimezone(timezone.utc).replace(tzinfo=None)
-
+        # "Today's Collection" is based on the payment date staff selected when
+        # recording the deposit — NOT when it was typed into the system. That
+        # way, entering last month's payment today doesn't inflate today's total.
         todays_payments = Transaction.query.filter(
             Transaction.txn_type == "PAYMENT",
-            Transaction.created_at >= utc_day_start,
-            Transaction.created_at < utc_day_end,
+            Transaction.date == date.today(),
         ).all()
         todays_collection = round(sum(float(t.amount) for t in todays_payments), 2)
         todays_collection_count = len(todays_payments)
@@ -194,6 +188,79 @@ def register_routes(app):
             todays_collection_count=todays_collection_count,
             class_counts=class_counts,
             recent_payments=recent_payments,
+            today=date.today().isoformat(),
+        )
+
+    @app.route("/reports/daily-collection")
+    @login_required
+    def daily_collection_report():
+        date_str = request.args.get("date", "").strip()
+        try:
+            report_date = datetime.strptime(date_str, "%Y-%m-%d").date() if date_str else date.today()
+        except ValueError:
+            report_date = date.today()
+
+        payments = (
+            Transaction.query.filter_by(txn_type="PAYMENT", date=report_date)
+            .order_by(Transaction.created_at)
+            .all()
+        )
+
+        mode_totals = {}
+        grand_total = 0.0
+        for t in payments:
+            mode = t.mode or "Other"
+            mode_totals[mode] = mode_totals.get(mode, 0.0) + float(t.amount)
+            grand_total += float(t.amount)
+
+        return render_template(
+            "daily_collection_report.html",
+            report_date=report_date,
+            payments=payments,
+            mode_totals=mode_totals,
+            grand_total=round(grand_total, 2),
+            today=date.today().isoformat(),
+        )
+
+    @app.route("/reports/daily-collection/export")
+    @login_required
+    def export_daily_collection():
+        date_str = request.args.get("date", "").strip()
+        try:
+            report_date = datetime.strptime(date_str, "%Y-%m-%d").date() if date_str else date.today()
+        except ValueError:
+            report_date = date.today()
+
+        payments = (
+            Transaction.query.filter_by(txn_type="PAYMENT", date=report_date)
+            .order_by(Transaction.created_at)
+            .all()
+        )
+
+        buffer = io.StringIO()
+        writer = csv.writer(buffer)
+        writer.writerow(["Admission No", "Student", "Class", "Mode", "Amount (Rs)", "Entered On", "Remarks"])
+        grand_total = 0.0
+        for t in payments:
+            writer.writerow([
+                t.student.admission_number,
+                t.student.name,
+                f"{t.student.class_name} - {t.student.section}",
+                t.mode or "",
+                float(t.amount),
+                t.created_at.strftime("%d %b %Y %I:%M %p") if t.created_at else "",
+                t.remarks or "",
+            ])
+            grand_total += float(t.amount)
+        writer.writerow([])
+        writer.writerow(["", "", "", "TOTAL", grand_total, "", ""])
+
+        output = buffer.getvalue()
+        filename = f"daily_collection_{report_date.isoformat()}.csv"
+        return Response(
+            output,
+            mimetype="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
         )
 
     # ---------- Students ----------

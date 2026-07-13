@@ -1,0 +1,78 @@
+{% extends "dashboard_base.html" %}
+{% set active = 'daily_report' %}
+{% block title %}Daily Collection Report{% endblock %}
+{% block page_title %}Daily Collection Report{% endblock %}
+
+{% block content %}
+<div class="panel">
+  <form method="GET" action="{{ url_for('daily_collection_report') }}">
+    <div class="toolbar">
+      <div class="field">
+        <label for="date">Date</label>
+        <input type="date" id="date" name="date" value="{{ report_date.isoformat() }}" max="{{ today }}">
+      </div>
+      <button type="submit" class="btn btn-outline btn-sm">View</button>
+      <a href="{{ url_for('daily_collection_report') }}" class="btn btn-outline btn-sm">Today</a>
+      <a href="{{ url_for('export_daily_collection', date=report_date.isoformat()) }}" class="btn btn-primary btn-sm">Export CSV</a>
+    </div>
+  </form>
+</div>
+
+<div class="card-grid">
+  <div class="stat-card ok">
+    <div class="label">Total Collected — {{ report_date.strftime('%d %b %Y') }}</div>
+    <div class="value">&#8377;{{ "{:,.0f}".format(grand_total) }}</div>
+    <div class="sub">{{ payments|length }} payment{{ '' if payments|length == 1 else 's' }}</div>
+  </div>
+  {% for mode, total in mode_totals.items() %}
+  <div class="stat-card">
+    <div class="label">{{ mode }}</div>
+    <div class="value">&#8377;{{ "{:,.0f}".format(total) }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="panel">
+  <h2>Payments Received on {{ report_date.strftime('%d %b %Y') }}</h2>
+  {% if payments %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Admission No.</th>
+        <th>Student</th>
+        <th>Class</th>
+        <th>Mode</th>
+        <th class="num-cell">Amount</th>
+        <th>Entered On</th>
+        <th>Remarks</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in payments %}
+      <tr>
+        <td>{{ t.student.admission_number }}</td>
+        <td><a href="{{ url_for('student_ledger', student_id=t.student_id) }}">{{ t.student.name }}</a></td>
+        <td>{{ class_label(t.student.class_name) }} - {{ t.student.section }}</td>
+        <td>{{ t.mode or '—' }}</td>
+        <td class="num-cell">&#8377;{{ "{:,.0f}".format(t.amount) }}</td>
+        <td style="white-space: nowrap;">{{ t.created_at | ist }}</td>
+        <td>{{ t.remarks or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="4" style="font-weight:700; text-align:right;">Total</td>
+        <td class="num-cell" style="font-weight:700;">&#8377;{{ "{:,.0f}".format(grand_total) }}</td>
+        <td colspan="2"></td>
+      </tr>
+    </tfoot>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <h3>No payments recorded for this date</h3>
+    <p>Try a different date, or check back once deposits come in.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
