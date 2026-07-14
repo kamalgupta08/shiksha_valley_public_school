@@ -7,9 +7,17 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 
 
 def _normalize_db_url(url: str) -> str:
-    """Render/Railway sometimes hand out 'postgres://' — SQLAlchemy 2.x needs 'postgresql://'."""
-    if url and url.startswith("postgres://"):
-        return url.replace("postgres://", "postgresql://", 1)
+    """Neon/Render/Railway hand out plain 'postgres://' or 'postgresql://' URLs.
+    SQLAlchemy needs to know explicitly to use the psycopg3 driver (not the old,
+    Python-3.14-incompatible psycopg2), so we rewrite the scheme accordingly.
+    SQLite URLs and anything that already specifies a driver pass through untouched.
+    """
+    if not url:
+        return url
+    if url.startswith("postgres://"):
+        url = "postgresql://" + url[len("postgres://"):]
+    if url.startswith("postgresql://"):
+        url = "postgresql+psycopg://" + url[len("postgresql://"):]
     return url
 
 
